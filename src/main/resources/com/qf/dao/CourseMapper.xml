@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+        PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.qf.dao.CourseMapper">
+    <resultMap id="courseMap" type="com.qf.pojo.Course">
+        <id column="cid" property="id"/>
+        <result column="course_title" property="courseTitle"/>
+        <result column="course_desc" property="courseDesc"/>
+        <result column="subject_id" property="subjectId"/>
+        <collection property="videoList" ofType="com.qf.pojo.Video">
+            <id column="vid" property="id"/>
+            <result column="title" property="title"/>
+            <result column="detail" property="detail"/>
+            <result column="time" property="time"/>
+            <result column="sid" property="speakerId"/>
+            <result column="cid" property="courseId"/>
+            <result column="video_url" property="videoUrl"/>
+            <result column="image_url" property="imageUrl"/>
+            <result column="play_num" property="playNum"/>
+            <association property="speaker" javaType="com.qf.pojo.Speaker">
+                <id column="sid" property="id"/>
+                <result column="speaker_name" property="speakerName"/>
+                <result column="speaker_desc" property="speakerDesc"/>
+                <result column="speaker_job" property="speakerJob"/>
+                <result column="head_img_url" property="headImgUrl"/>
+            </association>
+        </collection>
+    </resultMap>
+
+    <select id="selectCourseById" resultMap="courseMap">
+        SELECT
+        course.id AS cid,
+        course.course_title,
+        course.course_desc,
+        course.subject_id,
+        video.id AS vid,
+        video.title,
+        video.detail,
+        video.time,
+        video.video_url,
+        video.image_url,
+        video.play_num,
+        speaker.id AS sid,
+        speaker.speaker_name,
+        speaker.speaker_desc,
+        speaker.speaker_job,
+        speaker.head_img_url
+        FROM
+        course
+        LEFT JOIN video ON video.course_id = course.id
+        LEFT JOIN speaker ON speaker.id = video.speaker_id
+        WHERE
+        course.id = #{id}
+    </select>
+    <select id="selectAll" resultMap="courseMap">
+        SELECT
+        course.id as cid,
+        course.course_title,
+        course.course_desc,
+        course.subject_id as sid
+        FROM
+        course
+    </select>
+    <delete id="deleteCourseById">
+        delete from course where id = #{id}
+
+    </delete>
+    <insert id="addCourse" parameterMap="com.qf.pojo.Course">
+        insert into course(id, course_title, course_desc) values (#{id},#{curse_title}, #{course_desc})
+    </insert>
+
+    <select id="selectCourseByQueryVo" resultType="Integer">
+        SELECT
+        Count(course.id) AS count
+        FROM
+        course
+    </select>
+    <update id="updateCourse" parameterMap="com.qf.pojo.Course">
+         UPDATE course SET
+        course_title = #{course_title},
+        course_desc = #{course_desc},
+        subject_id = #{subject_id},
+        WHERE
+        id = #{id};
+    </update>
+</mapper>

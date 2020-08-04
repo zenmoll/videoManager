@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>视频管理</title>
+</head>
+
+<!-- 引入静态资源文件 -->
+<link rel="stylesheet" href="layui/css/layui.css">
+<script src="layui/layui.js"></script>
+<script src="js/jquery-1.8.3.js"></script>
+
+<body>
+
+<ul class="layui-nav">
+    <li class="layui-nav-item"><a href="">视频管理系统</a></li>
+    <li class="layui-nav-item layui-this">
+        <a href="javascript:;">视频管理</a>
+
+    </li>
+    <li class="layui-nav-item"><a href="speakerList.html">主讲人管理</a></li>
+    <li class="layui-nav-item">
+        <a href="courseList.html">课程管理</a>
+    </li>
+
+    <li class="layui-nav-item">
+
+        <a href="login.html" class="layui-icon layui-icon-logout" style="font-size: 15px; color: red;">_退出</a>
+
+    </li>
+
+</ul>
+
+
+<h2 style="padding: 10px 0 0 30px">视频管理</h2>
+
+
+<script>
+    layui.use('element', function(){
+        var element = layui.element; //导航的hover效果、二级菜单等功能，需要依赖element模块
+
+        //监听导航点击
+        element.on('nav(demo)', function(elem){
+            //console.log(elem)
+            layer.msg(elem.text());
+        });
+    });
+</script>
+
+<table class="layui-hide" id="test" lay-filter="test"></table>
+
+<script type="text/html" id="toolbarDemo">
+    <div class="layui-btn-container">
+        <button class="layui-btn layui-btn-sm" lay-event="getCheckData">删除选中行</button>
+        <button class="layui-btn layui-btn-sm" lay-event="getCheckLength">获取选中数目</button>
+        <button class="layui-btn layui-btn-sm" lay-event="isAll">验证是否全选</button>
+        <button class="layui-btn layui-btn-sm" lay-event="insertVideo">添加</button>
+        <a class="layui-btn layui-btn-sm search_btn "  id="searchBtn"  data-type="getInfo" style="margin-left: 15px;">查询</a>
+        <button class="layui-btn layui-btn-sm" lay-submit lay-filter="formDemo">立即提交</button>
+    </div>
+</script>
+
+<script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+</script>
+
+<script>
+    layui.use('table', function(){
+        var table = layui.table;
+
+        table.render({
+            elem: '#test'
+            ,url:'video/findVideos'
+            ,toolbar: '#toolbarDemo' //开启头部工具栏，并为其绑定左侧模板
+            ,defaultToolbar: ['filter', 'exports', 'print', { //自定义头部工具栏右侧图标。如无需自定义，去除该参数即可
+                title: '提示'
+                ,layEvent: 'LAYTABLE_TIPS'
+                ,icon: 'layui-icon-tips'
+            }]
+            ,title: '用户数据表'
+            ,cols: [[
+                {type: 'checkbox', fixed: 'left'}
+                ,{field:'id', title:'序号', sort: true}
+                ,{field:'title', title:'名称'}
+                ,{field:'detail', title:'简介'}
+                ,{field:'speaker_name', title:'讲师'}
+                ,{field:'time', title:'时长'}
+                ,{field:'play_num', title:'播放次数'}
+                //,{field:'create_time', title:'时间',templet:"<div>{{layui.util.toDateString(d.create_time, 'yyyy-MM-dd HH:mm:ss')}}</div> "}
+                ,{fixed: 'right', title:'操作', toolbar: '#barDemo', width:150}
+            ]]
+            ,page: true
+        });
+
+
+
+        //头工具栏事件
+        table.on('toolbar(test)', function(obj){
+            var checkStatus = table.checkStatus(obj.config.id);
+            switch(obj.event){
+                case 'getCheckData':
+                    var data = checkStatus.data;
+                    //layer.alert(JSON.stringify(data));
+                    //声明参数传多个id
+                    var params = "";
+                    //js遍历
+                    for(var i in data){
+                        params+="&ids="+data[i].id
+                    }
+                    alert(params);
+
+                    $.ajax({
+                        url: "video/deleteByIds",
+                        type: "POST",
+                        data: params,
+                        success: function(){
+                            table.reload("test",{});
+                            //window.location.reload();
+                        }
+                    });
+
+                    break;
+                case 'getCheckLength':
+                    var data = checkStatus.data;
+                    layer.msg('选中了：'+ data.length + ' 个');
+                    break;
+                case 'isAll':
+                    layer.msg(checkStatus.isAll ? '全选': '未全选');
+                    break;
+                case 'insertVideo':
+                    // alert("dadada");
+                    insertVideo(data);
+                    break;
+
+                //自定义头工具栏右侧图标 - 提示
+                case 'LAYTABLE_TIPS':
+                    layer.alert('这是工具栏右侧自定义的一个图标按钮');
+                    break;
+            };
+        });
+
+        //监听行工具事件
+        table.on('tool(test)', function(obj){
+            var data = obj.data;
+            //console.log(obj)
+            if(obj.event === 'del'){
+                layer.confirm('真的删除行么', function(index){
+                    obj.del();
+                    //从数据库中删除
+                    alert(data.id);
+
+                    $.ajax({
+                        url: "video/deleteById",
+                        data:"id="+data.id,
+                        success: function(){
+                            layer.close(index);
+                        }
+                    });
+
+                });
+
+
+                //  layer.close(speakerList);
+                // });
+            } else if(obj.event === 'edit'){
+                updateVideo(data);
+            }
+        });
+    });
+
+
+</script>
+
+<script>
+
+    /*修改*/
+    function updateVideo(data) {
+        // alert("ajklsdjlaj");
+        layer.open({
+            type: 1,
+            content: $('#updateVideo').html(),
+            title: '修改视频信息',
+            area: ['600px', '600px'],
+            btn: ['提交', '取消'], //可以写多个按钮
+            success: function () {//弹出层打开后的回调函数,数据回显
+                $('#id').val(data.id);
+                $('#title').val(data.title);
+                $('#detail').val(data.detail);
+                $('#time').val(data.time);
+                $('#speaker_id').val(data.speakerId);
+                $('#course_id').val(data.courseId);
+                $('#video_url').val(data.videoUrl);
+                $('#image_url').val(data.imageUrl);
+                $('#play_num').val(data.playNum);
+
+                layui.form.render();//后追加到页面的元素，layui不渲染，必须render
+            },
+            yes: function (index, layero) {
+                $.ajax({
+                    url: 'http://localhost:8080/video/updateVideo',
+                    data: $("#video-form").serialize(),
+                    method: 'post',
+                    success: function () {
+                        console.log("参数"+ $("#video-form").serialize())
+
+                        window.location.reload();//重新加载
+                    }
+                })
+            }
+        })
+    }
+
+</script>
+
+<script>
+
+    /*添加*/
+    function insertVideo(date) {
+        // alert("ajklsdjlaj");
+        layer.open({
+            type: 1,
+            content: $('#updateVideo').html(),
+            title: '添加视频信息',
+            area: ['600px', '600px'],
+            btn: ['提交', '取消'], //可以写多个按钮
+
+            yes: function (index, layero) {
+                $.ajax({
+                    url: 'http://localhost:8080/video/insertVideo',
+                    data: $("#video-form").serialize(),
+                    method: 'post',
+                    success: function () {
+                        console.log("参数"+ $("#video-form").serialize())
+
+                        window.location.reload();//重新加载
+                    }
+                })
+            }
+        })
+    }
+
+</script>
+
+<script type="text/html" id="updateVideo">
+
+    <form class="layui-form" id="video-form" lay-filter="word-edit-form">
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">id</label>
+            <div class="layui-input-inline">
+                <input id="id" type="text" name="id" placeholder="id"  class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-inline">
+                <input id="title" type="text" name="title" placeholder="请输入课程名称"  class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">简介</label>
+            <div class="layui-input-inline">
+                <input id="detail" type="text" name="detail" placeholder="请输入课程简介"  class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">时长</label>
+            <div class="layui-input-inline">
+                <input id="time" type="text" name="time" placeholder="请输入课程时长"  class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">讲师编号</label>
+            <div class="layui-input-inline">
+                <input id="speakerId" type="text" name="speakerId" placeholder="请输入讲师编号" class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">科目编号</label>
+            <div class="layui-input-inline">
+                <input id="courseId" type="text" name="courseId" placeholder="请输入科目编号" class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">视频路径</label>
+            <div class="layui-input-inline">
+                <input id="videoUrl" type="text" name="videoUrl" placeholder="请输入科目编号" class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">图片路径</label>
+            <div class="layui-input-inline">
+                <input id="imageUrl" type="text" name="imageUrl" placeholder="请输入科目编号" class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item">
+            <label class="layui-form-label">播放次数</label>
+            <div class="layui-input-inline">
+                <textarea id="playNum" type="text" name="playNum" placeholder="请输入播放次数" class="layui-input"></textarea>
+            </div>
+        </div>
+
+
+    </form>
+</script>
+
+</body>
+</html>

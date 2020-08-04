@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>主讲人管理</title>
+</head>
+
+<!-- 引入静态资源文件 -->
+<link rel="stylesheet" href="layui/css/layui.css">
+<script src="layui/layui.js"></script>
+<script src="js/jquery-1.8.3.js"></script>
+
+<body>
+
+<ul class="layui-nav">
+    <li class="layui-nav-item"><a href="">视频管理系统</a></li>
+    <li class="layui-nav-item">
+        <a href="video.html">视频管理</a>
+
+    </li>
+    <li class="layui-nav-item layui-this"><a href="javascript:" >主讲人管理</a></li>
+    <li class="layui-nav-item">
+        <a href="courseList.html">课程管理</a>
+
+    </li>
+
+    <li class="layui-nav-item">
+
+        <a href="login.html" class="layui-icon layui-icon-logout" style="font-size: 15px; color: red;">_退出</a>
+
+    </li>
+
+</ul>
+<h2 style="padding: 10px 0 0 30px">主讲人管理</h2>
+
+<script>
+    layui.use('element', function(){
+        var element = layui.element; //导航的hover效果、二级菜单等功能，需要依赖element模块
+
+        //监听导航点击
+        element.on('nav(demo)', function(elem){
+            //console.log(elem)
+            layer.msg(elem.text());
+        });
+    });
+</script>
+
+
+<table class="layui-hide" id="test" lay-filter="test"></table>
+
+<script type="text/html" id="toolbarDemo">
+    <div class="layui-btn-container">
+        <button class="layui-btn layui-btn-sm" lay-event="getCheckLength">获取选中数目</button>
+        <button class="layui-btn layui-btn-sm" lay-event="isAll">验证是否全选</button>
+        <button class="layui-btn layui-btn-sm" lay-event="insertSpeaker">添加</button>
+    </div>
+</script>
+
+<script type="text/html" id="barDemo">
+    <a class="layui-btn layui-btn-xs" lay-event="edit">编辑</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">删除</a>
+</script>
+
+
+<script>
+    layui.use('table', function(){
+        var table = layui.table;
+
+        table.render({
+            elem: '#test'
+            ,url:'speaker/findAll'
+            ,toolbar: '#toolbarDemo' //开启头部工具栏，并为其绑定左侧模板
+            ,defaultToolbar: ['filter', 'exports', 'print', { //自定义头部工具栏右侧图标。如无需自定义，去除该参数即可
+                title: '提示'
+                ,layEvent: 'LAYTABLE_TIPS'
+                ,icon: 'layui-icon-tips'
+            }]
+            ,title: '用户数据表'
+            ,cols: [[
+                {type: 'checkbox', fixed: 'left'}
+                ,{field:'id', title:'序号', sort: true}
+                ,{field:'speaker_name', title:'名称'}
+                ,{field:'speaker_desc', title:'简介'}
+                ,{field:'speaker_job', title:'职位'}
+                //,{field:'create_time', title:'时间',templet:"<div>{{layui.util.toDateString(d.create_time, 'yyyy-MM-dd HH:mm:ss')}}</div> "}
+                ,{fixed: 'right', title:'操作', toolbar: '#barDemo', width:150}
+            ]]
+            ,page: true
+        });
+
+
+
+        //头工具栏事件
+        table.on('toolbar(test)', function(obj){
+            var checkStatus = table.checkStatus(obj.config.id);
+            switch(obj.event){
+                case 'getCheckData':
+                    var data = checkStatus.data;
+                    //layer.alert(JSON.stringify(data));
+                    //声明参数传多个id
+                    var params = "";
+                    //js遍历
+                    for(var i in data){
+                        params+="&ids="+data[i].id
+                    }
+                    alert(params);
+
+                    // var param = "";
+                    // //jquery遍历
+                    // $.each( data, function(index, obj){
+                    //     param+="&ids="+obj.music_id;
+                    // });
+                    // alert(param+"---");
+
+                    $.ajax({
+                        url: "speaker/deleteByIds",
+                        type: "POST",
+                        data: params,
+                        success: function(){
+                            table.reload("test",{});
+                            //window.location.reload();
+                        }
+                    });
+
+                    break;
+                case 'getCheckLength':
+                    var data = checkStatus.data;
+                    layer.msg('选中了：'+ data.length + ' 个');
+                    break;
+                case 'isAll':
+                    layer.msg(checkStatus.isAll ? '全选': '未全选');
+                    break;
+                case 'insertSpeaker':
+
+                    insertSpeaker();
+
+                    break;
+
+                //自定义头工具栏右侧图标 - 提示
+                case 'LAYTABLE_TIPS':
+                    layer.alert('这是工具栏右侧自定义的一个图标按钮');
+                    break;
+            };
+        });
+
+        //监听行工具事件
+        table.on('tool(test)', function(obj){
+            var data = obj.data;
+            //console.log(obj)
+            if(obj.event === 'del'){
+                layer.confirm('真的删除行么', function(index){
+                    obj.del();
+                    //从数据库中删除
+                    alert(data.id);
+
+                    $.ajax({
+                        url: "speaker/deleteById",
+                        data:"id="+data.id,
+                        success: function(){
+                            layer.close(index);
+                        }
+                    });
+
+                });
+
+
+                  //  layer.close(speakerList);
+               // });
+            } else if(obj.event === 'edit'){
+                updateSpeaker(data);
+            }
+        });
+    });
+
+
+</script>
+
+<script>
+
+    /*修改*/
+    function updateSpeaker(data) {
+        layer.open({
+            type: 1,
+            content: $('#updateSpeaker').html(),
+            title: '修改文档',
+            area: ['600px', '600px'],
+            btn: ['提交', '取消'], //可以写多个按钮
+            success: function () {//弹出层打开后的回调函数,数据回显
+                $('#id').val(data.id);
+                $('#speaker_Name').val(data.speakerName);
+                $('#speaker_job').val(data.speakerJob);
+                $('#speaker_desc').val(data.speakerDesc);
+
+
+                /*  $('#uploadtime').val(data.uploadtime);*/
+
+
+                layui.form.render();//后追加到页面的元素，layui不渲染，必须render
+            },
+            yes: function (index, layero) {
+                $.ajax({
+                    url: 'http://localhost:8080/speaker/updateSpeaker',
+                    data: $("#speaker-form").serialize(),
+                    method: 'post',
+                    success: function () {
+                        console.log("参数"+ $("#speaker-form").serialize())
+
+                        window.location.reload();//重新加载
+                    }
+                })
+            }
+        })
+    }
+
+</script>
+
+<script>
+
+    /*添加*/
+    function insertSpeaker(data) {
+        layer.open({
+            type: 1,
+            content: $('#updateSpeaker').html(),
+            title: '添加文档',
+            area: ['600px', '600px'],
+            btn: ['提交', '取消'], //可以写多个按钮
+
+            yes: function (index, layero) {
+                $.ajax({
+                    url: 'http://localhost:8080/speaker/insertSpeaker',
+                    data: $("#speaker-form").serialize(),
+                    method: 'post',
+                    success: function () {
+                        console.log("参数"+ $("#speaker-form").serialize())
+
+                        window.location.reload();//重新加载
+                    }
+                })
+            }
+        })
+    }
+
+</script>
+
+<script type="text/html" id="updateSpeaker">
+
+    <form class="layui-form" id="speaker-form" lay-filter="word-edit-form">
+        <div class="layui-form-item">
+            <label class="layui-form-label">序号</label>
+            <div class="layui-input-inline">
+                <input id="id" type="text" name="id" placeholder="请输入讲师序号"  class="layui-input">
+            </div>
+
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">名称</label>
+            <div class="layui-input-inline">
+                <input id="speakerName" type="text" name="speakerName" placeholder="请输入讲师名称"  class="layui-input">
+            </div>
+
+        </div>
+        <div class="layui-form-item">
+            <label class="layui-form-label">职位</label>
+            <div class="layui-input-block">
+                <input id="speakerJob" type="text" name="speakerJob" placeholder="请输入讲师职位" class="layui-input">
+            </div>
+        </div>
+
+        <div class="layui-form-item layui-form-text">
+            <label class="layui-form-label">简介</label>
+            <div class="layui-input-block">
+                <textarea id="speakerDesc" name="speakerDesc" placeholder="请输入讲师简介" class="layui-textarea"></textarea>
+            </div>
+        </div>
+
+
+
+
+    </form>
+</script>
+
+</body>
+
+
+
+
+</html>
